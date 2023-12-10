@@ -263,10 +263,10 @@ function solve(input) {
     for (let y = 0; y <= maxY; y++) {
         let line = "";
         for (let x = 0; x <= maxX; x++) {
-            let find = insideNodes
+            let node = insideNodes
                 .find(node => node.x === x && node.y === y);
 
-            if (find) {
+            if (node) {
                 line += "I"
             } else {
                 line += ".";
@@ -275,7 +275,7 @@ function solve(input) {
         console.log(line);
     }
 
-    console.log("Inside nodes:", insideNodes.reduce((acc) => acc + 1, 0))
+    console.log("Inside nodes:", insideNodes.length)
 }
 
 solve(input)
