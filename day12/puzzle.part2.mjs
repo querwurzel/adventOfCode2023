@@ -46,25 +46,39 @@ function parse(input) {
     })
 
     console.dir(records)
-
     return records;
 }
 
-function check(pattern, groupSizes) {
+function check(pattern, groupSizes, strict = true) {
     /*
     if (pattern.includes("?")) {
         throw new Error("pattern must not contain '?':" + pattern)
-    }
-     */
+    }*/
 
     let patternGroups = pattern.split(".").filter(val => !!val)
-    if (patternGroups.length !== groupSizes.length) {
-        return false;
-    }
 
-    for (let i = 0; i < groupSizes.length; i++) {
-        if (patternGroups[i].length !== groupSizes[i]) {
-            return false
+    if (strict) {
+        if (patternGroups.length !== groupSizes.length) {
+            return false;
+        }
+
+        for (let i = 0; i < groupSizes.length; i++) {
+            if (patternGroups[i].length !== groupSizes[i]) {
+                return false
+            }
+        }
+    } else {
+        // as far as we can
+        //console.dir(patternGroups)
+        for (let i = 0; i < patternGroups.length; i++) {
+            let group = patternGroups[i];
+
+            if (group.includes("?")) {
+                break;
+            }
+            if (group.length !== groupSizes[i]) {
+                return false
+            }
         }
     }
 
@@ -96,11 +110,14 @@ function solve(input) {
         }
 
         markGroups
-            .filter(group => !markGroupCandidates.has(group.length))
             .forEach(group => {
+                if (markGroupCandidates.has(group.length)) {
+                    return;
+                }
+
+                console.log("Precalculating candidates for group size", group.length)
                 const maxCombinations = Math.pow(symbols.length, group.length)
                 const maxDigits = (maxCombinations - 1 >>> 0).toString(2).length // because 0 is a digit too
-                //console.log(group + " allows for max combinations:", maxCombinations, maxDigits)
 
                 let formats = [];
                 for (let i = 0; i < maxCombinations; i++) {
@@ -116,29 +133,37 @@ function solve(input) {
                 markGroupCandidates.set(group.length, formats)
             })
 
+        //row.wildcards = markGroups
+        //console.dir(markGroups)
         //console.dir(markGroupCandidates)
 
-        let solutions = [row.pattern];
-        let sortedGroups = markGroups
-            .toSorted((a, b) => b.length - a.length) // descending
+        let candidates = [row.pattern];
 
-        for (let group of sortedGroups) {
-            let appliedSolutions = []
-            let groupSolutions = markGroupCandidates.get(group.length);
+        for (let group of markGroups) {
+            const appliedSolutions = []
+            const groupSolutions = markGroupCandidates.get(group.length);
+            const numSolutions = candidates.length;
 
-            for (let solution of solutions) {
+            for (let i = 0; i < numSolutions; i++) {
+                let candidate = candidates.pop();
+
                 for (let groupSolution of groupSolutions) {
-                    appliedSolutions.push(solution.replaceAt(group.start, groupSolution))
+                    let variant = candidate.replaceAt(group.start, groupSolution);
+
+                    if (check(variant, row.groupSizes, false)) { // cumulative check
+                        //console.info("candidate valid", variant, row.groupSizes)
+                        appliedSolutions.push(variant.replaceAt(group.start, groupSolution))
+                    }
                 }
             }
 
-            solutions = appliedSolutions
+            candidates = appliedSolutions
+            console.log("potential solution space", candidates.length)
         }
 
-        let validSolutions = solutions.filter(solution => check(solution, row.groupSizes));
+        let validSolutions = candidates.filter(solution => check(solution, row.groupSizes));
 
         //console.log(validSolutions)
-
         //console.log(row.pattern + " allows for valid combinations", validSolutions.length)
         total += validSolutions.length
     }
@@ -150,4 +175,7 @@ String.prototype.replaceAt = function(index, replacement) {
     return this.substring(0, index) + replacement + this.substring(index + replacement.length);
 }
 
-solve(testInput)
+let startTime = new Date();
+solve(testInput) // God be with us ... and lots of memory
+let endTime = new Date();
+console.log("Took ms:", endTime - startTime)

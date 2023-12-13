@@ -33,20 +33,37 @@ function parse(input) {
     return records;
 }
 
-function check(pattern, groupSizes) {
+function check(pattern, groupSizes, strict = true) {
     /*
     if (pattern.includes("?")) {
         throw new Error("pattern must not contain '?':" + pattern)
     }*/
 
     let patternGroups = pattern.split(".").filter(val => !!val)
-    if (patternGroups.length !== groupSizes.length) {
-        return false;
-    }
 
-    for (let i = 0; i < groupSizes.length; i++) {
-        if (patternGroups[i].length !== groupSizes[i]) {
-            return false
+    if (strict) {
+        if (patternGroups.length !== groupSizes.length) {
+            return false;
+        }
+
+        for (let i = 0; i < groupSizes.length; i++) {
+            if (patternGroups[i].length !== groupSizes[i]) {
+                return false
+            }
+        }
+    } else {
+        // as far as we can
+        //console.dir(patternGroups)
+        for (let i = 0; i < patternGroups.length; i++) {
+            let group = patternGroups[i];
+
+            if (group.includes("?")) {
+                break; // prevent prejudgement
+            }
+
+            if (patternGroups[i].length !== groupSizes[i]) {
+                return false
+            }
         }
     }
 
@@ -55,7 +72,7 @@ function check(pattern, groupSizes) {
 
 function solve(input) {
     const rows = parse(input)
-    const symbols = [".", "#"]
+    const symbols = ["#", "."]
     const markGroupCandidates = new Map([[1, symbols]]);
 
     let total = 0;
@@ -78,8 +95,12 @@ function solve(input) {
         }
 
         markGroups
-            .filter(group => !markGroupCandidates.has(group.length))
             .forEach(group => {
+                if (markGroupCandidates.has(group.length)) {
+                    return;
+                }
+
+                //console.log("Precalculating candidates for group size", group.length)
                 const maxCombinations = Math.pow(symbols.length, group.length)
                 const maxDigits = (maxCombinations - 1 >>> 0).toString(2).length // because 0 is a digit too
                 //console.log(group + " allows for max combinations:", maxCombinations, maxDigits)
@@ -100,28 +121,36 @@ function solve(input) {
 
         //console.dir(markGroupCandidates)
 
-        let solutions = [row.pattern];
-        let sortedGroups = markGroups
-            .toSorted((a, b) => b.length - a.length) // descending
+        let candidates = [row.pattern];
 
-        for (let group of sortedGroups) {
-            let appliedSolutions = []
-            let groupSolutions = markGroupCandidates.get(group.length);
+        for (let group of markGroups) {
+            const appliedSolutions = []
+            const groupSolutions = markGroupCandidates.get(group.length);
+            const numSolutions = candidates.length;
 
-            for (let solution of solutions) {
+            for (let i = 0; i < numSolutions; i++) {
+                let solution = candidates.pop();
+
                 for (let groupSolution of groupSolutions) {
-                    appliedSolutions.push(solution.replaceAt(group.start, groupSolution))
+                    let candidate = solution.replaceAt(group.start, groupSolution);
+
+                    if (check(candidate, row.groupSizes, false)) { // cumulative check
+                        appliedSolutions.push(solution.replaceAt(group.start, groupSolution))
+                    } else {
+
+    //console.warn("candidate invalid already: ", candidate, row.groupSizes)
+                    }
                 }
             }
 
-            solutions = appliedSolutions
+            candidates = appliedSolutions
         }
 
-        let validSolutions = solutions.filter(solution => check(solution, row.groupSizes));
-
-        //console.log(validSolutions)
+        //console.dir(candidates)
+        let validSolutions = candidates.filter(candidate => check(candidate, row.groupSizes));
 
         //console.log(row.pattern + " allows for valid combinations", validSolutions.length)
+        //console.log(validSolutions)
         total += validSolutions.length
     }
 
@@ -132,4 +161,7 @@ String.prototype.replaceAt = function(index, replacement) {
     return this.substring(0, index) + replacement + this.substring(index + replacement.length);
 }
 
-solve(input)
+let startTime = new Date();
+solve(testInput)
+let endTime = new Date();
+console.log("Took ms:", endTime - startTime)
