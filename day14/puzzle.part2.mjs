@@ -28,12 +28,9 @@ function parse(input) {
     return grid;
 }
 
-/**
- * Sorting 'O' as close as possible to the next '#'
- */
 function tiltRight(grid) {
     for (let y = 0; y < grid.length; y++) {
-        let line = grid[y];
+        const line = grid[y];
 
         for (let x = 0; x < line.length; x++) {
             if (line[x] === '#') {
@@ -45,35 +42,12 @@ function tiltRight(grid) {
                 ? line.length
                 : nextSquare
 
-            const sub = sort(line.slice(x, nextSquare), rollRight);
+            const segment = sort(line.slice(x, nextSquare));
 
-            line.splice(x, sub.length, ...sub)
+            line.splice(x, segment.length, ...segment)
             x = nextSquare;
         }
-    }
 
-    return grid;
-}
-
-function tiltLeft(grid) {
-    for (let y = 0; y < grid.length; y++) {
-        let line = grid[y];
-
-        for (let x = 0; x < line.length; x++) {
-            if (line[x] === '#') {
-                continue;
-            }
-
-            let nextSquare = line.indexOf('#', x + 1)
-            nextSquare = (nextSquare === -1)
-                ? line.length
-                : nextSquare
-
-            const sub = sort(line.slice(x, nextSquare), rollLeft);
-
-            line.splice(x, sub.length, ...sub)
-            x = nextSquare;
-        }
     }
 
     return grid;
@@ -81,23 +55,10 @@ function tiltLeft(grid) {
 
 function rollRight(symbol) {
     return symbol === '.' ? -1 : 1;
-    /*
-    switch (symbol) {
-        case '.':
-            return -1
-        case 'O':
-            return 1;
-        default:
-            return 0;
-    }*/
 }
 
-function rollLeft(symbol) {
-    return symbol === '.' ? 1 : -1;
-}
-
-function sort(line, weight) {
-    return line.sort((a, b) => weight(a) - weight(b))
+function sort(line) {
+    return line.sort((a, b) => rollRight(a) - rollRight(b))
 }
 
 function rotateLeft(grid) {
@@ -115,40 +76,47 @@ function displayGrid(grid) {
     console.log("---------------------------------------------------")
 }
 
-function solve(input) {
+function score(grid) {
     let total = 0;
+
+    grid = rotateRight(grid)
+    for (let line of grid) {
+        for (let x = 0; x < line.length; x++) {
+            if (line[x] === 'O') {
+                total += x + 1
+            }
+        }
+    }
+
+    rotateLeft(grid)
+    return total;
+}
+
+function solve(input) {
     let grid = parse(input)
 
     displayGrid(grid)
 
     //const cycles = 3;
-    //const cycles = 1_000_000_000;
-    const cycles = 15625000;
-    // left and right approach
-    for (let cycle = 0; cycle < cycles; cycle++) {
-        grid = rotateLeft(grid) // north
-        grid = tiltLeft(grid)
-        grid = rotateRight(grid)
-
-        grid = tiltLeft(grid) // west
-
-        grid = rotateRight(grid)
-        grid = tiltLeft(grid) // south
-        grid = rotateLeft(grid)
-
-        grid = tiltRight(grid) // east
-
-        if (cycle % 1_000_000 === 0) {
-            console.log("Applied cycles:", cycle || 1)
-        }
-    }
-
-    // total 69
-    // Took ms: 26
+    const cycles = 1_000_000_000;
+    const cyclesSeen = new Map();
 
     // right-only approach
-    /*
     for (let cycle = 0; cycle < cycles; cycle++) {
+        const cacheKey = JSON.stringify(grid)
+
+        if (cyclesSeen.has(cacheKey)) {
+            let previousCycle = cyclesSeen.get(cacheKey);
+            let period = cycle - previousCycle;
+            console.log("Already seen grid, fast-forwarding", period, previousCycle, cycle)
+
+            cycle = cycles - ((cycles - cycle) % period)
+            cyclesSeen.clear() // prevent another jump
+        } else {
+            console.log("Found unique grid at cycle", cycle)
+            cyclesSeen.set(cacheKey, cycle)
+        }
+
         grid = rotateRight(grid) // north
         grid = tiltRight(grid)
         grid = rotateLeft(grid)
@@ -180,25 +148,13 @@ function solve(input) {
         if (cycle % 1_000_000 === 0) {
             console.log("Applied cycles:", cycle)
         }
-    }*/
-
-    // total calculation
-    grid = rotateRight(grid)
-    for (let line of grid) {
-        for (let x = 0; x < line.length; x++) {
-            if (line[x] === 'O') {
-                total += x + 1
-            }
-        }
     }
 
-    grid = rotateLeft(grid)
     displayGrid(grid)
-
-    console.log("total", total)
+    console.log("total", score(grid))
 }
 
 let startTime = new Date();
-solve(testInput)
+solve(input)
 let endTime = new Date();
 console.log("Took ms:", endTime - startTime)
